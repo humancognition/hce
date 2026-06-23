@@ -36,6 +36,9 @@ publishing {
     }
     publications {
         maven(MavenPublication) {
+            groupId = 'com.github.humancognition'
+            artifactId = 'hce'
+            version = '0.1.0'
             from components.java
             pom {
                 name = 'HCE'

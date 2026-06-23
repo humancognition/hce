@@ -287,7 +287,7 @@ jobs:
       - run: pip install --retries 3 maturin && cd crates/hce-py && maturin build && cd ${{ github.workspace }} && pip install $(python -c "import glob; print(glob.glob('target/wheels/hce-*.whl')[0])")
       - run: python crates/hce-py/tests/test_kat.py
 
-  release-python-build:
+  release-platform-build:
     if: github.event_name == 'workflow_dispatch' && inputs.release
     needs: [test, stress, python, integration]
     strategy:
@@ -300,24 +300,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install maturin
-      - run: cd crates/hce-py && maturin build --release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-${{ matrix.os }}
-          path: target/wheels/*.whl
-
-  release-rust-build:
-    if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [test, stress, integration]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Build and prepare binary
+      - name: Build Rust binary and Python wheel
         shell: bash
         run: |
           cargo build --release --workspace --exclude hce-py
@@ -329,10 +312,14 @@ jobs:
           else
             cp target/release/hce dist/hce-linux-x86_64
           fi
+          pip install maturin
+          cd crates/hce-py && maturin build --release
       - uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.os }}
-          path: dist/
+          name: platform-${{ matrix.os }}
+          path: |
+            dist/
+            target/wheels/*.whl
 
   release-wasm-build:
     if: github.event_name == 'workflow_dispatch' && inputs.release
@@ -356,7 +343,7 @@ jobs:
 
   release:
     if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [release-python-build, release-rust-build, release-wasm-build, go, java, swift, audit]
+    needs: [release-platform-build, release-wasm-build, go, java, swift, audit]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
@@ -382,18 +369,10 @@ jobs:
           name: wasm-pkg
           path: crates/hce-wasm/pkg
 
-      - name: Download Python wheels
+      - name: Download platform artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*
-          path: target/wheels
-          merge-multiple: true
-
-      - name: Download Rust binaries
-        uses: actions/download-artifact@v4
-        with:
-          pattern: binary-*
-          path: dist
+          pattern: platform-*
           merge-multiple: true
 
       - name: Publish npm
