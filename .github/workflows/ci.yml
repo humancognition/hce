@@ -436,6 +436,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.value }}
-          files: dist/*
+          files: |
+            dist/*
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm
+            crates/hce-wasm/pkg/hce_wasm.js
+            crates/hce-wasm/pkg/hce_wasm.d.ts
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts
+            target/wheels/*.whl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
