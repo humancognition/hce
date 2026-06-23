@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "phoible_url": "https://raw.githubusercontent.com/phoible/dev/master/data/phoible.csv",
+    "coverage_threshold": 0.40,
+    "total_languages": 2095
+  },
+  "onset": {
+    "single_consonants": ["b","d","g","k","m","n","p","t","s","l","r","f","h","j","w"],
+    "single_count": 15,
+    "consonant_clusters": ["bl","br","dr","gl","gr","kl","kr","pl","pr","tr"],
+    "cluster_count": 10,
+    "total_radix": 25,
+    "coverage": {
+      "b": {"pct": 0.6525, "count": 1367, "class": "plosive"},
+      "d": {"pct": 0.5165, "count": 1082, "class": "plosive"},
+      "g": {"pct": 0.5905, "count": 1237, "class": "plosive"},
+      "k": {"pct": 0.9255, "count": 1939, "class": "plosive"},
+      "m": {"pct": 0.9700, "count": 2032, "class": "nasal"},
+      "n": {"pct": 0.8544, "count": 1790, "class": "nasal"},
+      "p": {"pct": 0.8745, "count": 1832, "class": "plosive"},
+      "t": {"pct": 0.7685, "count": 1610, "class": "plosive"},
+      "s": {"pct": 0.7217, "count": 1512, "class": "fricative"},
+      "l": {"pct": 0.7303, "count": 1530, "class": "liquid"},
+      "r": {"pct": 0.7146, "count": 1497, "class": "liquid"},
+      "f": {"pct": 0.4983, "count": 1044, "class": "fricative"},
+      "h": {"pct": 0.5938, "count": 1244, "class": "fricative"},
+      "j": {"pct": 0.9160, "count": 1919, "class": "glide"},
+      "w": {"pct": 0.8635, "count": 1809, "class": "glide"}
+    }
+  },
+  "vnuc": {
+    "vowels": ["a","e","i","o","u"],
+    "vowel_count": 5,
+    "coda_consonants": ["n","l","r","m","s"],
+    "coda_count": 5,
+    "total_radix": 30,
+    "vowel_coverage": {
+      "a": {"pct": 0.9117, "count": 1910},
+      "e": {"pct": 0.6907, "count": 1447},
+      "i": {"pct": 0.9542, "count": 1999},
+      "o": {"pct": 0.6754, "count": 1415},
+      "u": {"pct": 0.9150, "count": 1917}
+    }
+  },
+  "ssp_sonority_scale": {
+    "plosive": 1,
+    "fricative": 1.5,
+    "nasal": 2,
+    "liquid": 3,
+    "glide": 4,
+    "vowel": 5
+  },
+  "derived": {
+    "onset_radix": 25,
+    "vnuc_radix": 30,
+    "syllable_capacity": 750,
+    "bits_per_syllable": 9.5507,
+    "syll_len_for_128bit": 14,
+    "total_capacity_bits": 133.71,
+    "meets_128bit": true
+  }
+}

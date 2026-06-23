@@ -1,0 +1,11 @@
+language = "C"
+include_guard = "HCE_FFI_H"
+no_includes = false
+usize_is_size_t = true
+
+[export]
+include = ["HceResult", "RecoveryCResult", "FpeVtable", "RawHce", "hce_new", "hce_new_with_cipher", "hce_with_cipher_kind", "hce_destroy", "hce_clone", "hce_with_bit_width", "hce_with_domain_modulus", "hce_with_case", "hce_with_check_syllables", "hce_with_separator", "hce_with_chunk_none", "hce_with_chunk_fixed", "hce_with_chunk_pattern", "hce_with_timestamp_config", "hce_encode", "hce_decode", "hce_recover", "hce_adapter_encode", "hce_free_result", "hce_free_recovery_result", "hce_free_buf", "hce_error_string"]
+
+[parse]
+parse_deps = true
+include = ["hce-core"]

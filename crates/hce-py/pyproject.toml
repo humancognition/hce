@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "hce"
+version = "0.1.0"
+description = "Lossless, pronounceable, encrypted codec for any identifier — reversible, format-preserving, human-readable"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+readme = "README.md"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]

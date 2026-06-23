@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = ["crates/hce-core", "crates/hce-adapters", "crates/hce-wasm", "crates/hce-cli", "crates/hce-ffi", "crates/hce-fpe", "crates/hce-py"]
+default-members = ["crates/hce-core", "crates/hce-adapters", "crates/hce-wasm", "crates/hce-cli", "crates/hce-ffi", "crates/hce-fpe"]
+
+[workspace.package]
+license = "MIT"
+repository = "https://github.com/humancognition/hce"
+
+[workspace.dependencies]
+hmac = { version = "0.13.0", default-features = false }
+sha2 = { version = "0.11.0", default-features = false }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

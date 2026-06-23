@@ -1,0 +1,43 @@
+{
+  "name": "@humancognition/hce",
+  "version": "0.1.0",
+  "description": "Lossless, pronounceable, encrypted codec for any identifier — reversible, format-preserving, human-readable",
+  "keywords": [
+    "uuid",
+    "identifier",
+    "pronounceable",
+    "codec",
+    "format-preserving",
+    "encryption",
+    "human-readable"
+  ],
+  "license": "MIT",
+  "author": "tmddn3070",
+  "repository": "humancognition/hce",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "index_bg.wasm",
+    "index_bg.wasm.d.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "echo 'Build via: wasm-pack build --target web ../../crates/hce-wasm && cp ../../crates/hce-wasm/pkg/hce_wasm_bg.wasm ./index_bg.wasm && cp ../../crates/hce-wasm/pkg/hce_wasm.js ./index.js && cp ../../crates/hce-wasm/pkg/hce_wasm.d.ts ./index.d.ts && cp ../../crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts ./index_bg.wasm.d.ts'",
+    "prepublishOnly": "test -f index_bg.wasm || (echo 'Run: npm run build' && exit 1)",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.9"
+  }
+}

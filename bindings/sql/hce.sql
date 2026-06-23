@@ -1,0 +1,5 @@
+DROP FUNCTION IF EXISTS hce_encode;
+CREATE FUNCTION hce_encode RETURNS STRING SONAME 'libhce_udf.so';
+
+DROP FUNCTION IF EXISTS hce_decode;
+CREATE FUNCTION hce_decode RETURNS STRING SONAME 'libhce_udf.so';

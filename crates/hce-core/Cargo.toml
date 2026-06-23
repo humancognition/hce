@@ -1,0 +1,34 @@
+[package]
+name = "hce-core"
+version = "0.1.0"
+edition = "2021"
+description = "Lossless, pronounceable, encrypted codec for any identifier — reversible, format-preserving, human-readable"
+license = "MIT"
+repository = "https://github.com/humancognition/hce"
+keywords = ["hce", "uuid", "identifier", "codec", "fpe", "pronounceable"]
+categories = ["cryptography", "encoding", "no-std"]
+
+[dependencies]
+hmac = { workspace = true }
+sha2 = { workspace = true }
+zeroize = { version = "1", default-features = false, features = ["alloc"] }
+rand = { version = "0.10.1", optional = true, default-features = false, features = ["std", "std_rng"] }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+
+[build-dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+rand = { version = "0.10.1", default-features = false, features = ["std", "std_rng"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[bin]]
+name = "hce-kat"
+path = "src/kat/main.rs"
+required-features = ["serde", "serde_json", "rand"]
+
+[features]
+default = ["std"]
+std = ["serde", "serde_json", "rand"]

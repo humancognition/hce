@@ -1,0 +1,20 @@
+[package]
+name = "hce-ffi"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/humancognition/hce"
+keywords = ["hce", "identifier", "codec"]
+categories = ["cryptography", "encoding"]
+description = "Lossless, pronounceable, encrypted codec for any identifier — reversible, format-preserving, human-readable"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+hce-core = { path = "../hce-core" }
+hce-fpe = { path = "../hce-fpe" }
+hce-adapters = { path = "../hce-adapters" }
+
+[dev-dependencies]
+serde_json = "1"
