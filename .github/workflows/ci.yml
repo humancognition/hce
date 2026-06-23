@@ -287,9 +287,75 @@ jobs:
       - run: pip install --retries 3 maturin && cd crates/hce-py && maturin build && cd ${{ github.workspace }} && pip install $(python -c "import glob; print(glob.glob('target/wheels/hce-*.whl')[0])")
       - run: python crates/hce-py/tests/test_kat.py
 
+  release-python-build:
+    if: github.event_name == 'workflow_dispatch' && inputs.release
+    needs: [test, stress, python, integration]
+    strategy:
+      matrix:
+        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install maturin
+      - run: cd crates/hce-py && maturin build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: target/wheels/*.whl
+
+  release-rust-build:
+    if: github.event_name == 'workflow_dispatch' && inputs.release
+    needs: [test, stress, integration]
+    strategy:
+      matrix:
+        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build and prepare binary
+        run: |
+          cargo build --release --workspace --exclude hce-py
+          mkdir -p dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp target/release/hce.exe dist/hce-windows-x86_64.exe
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            cp target/release/hce dist/hce-darwin-x86_64
+          else
+            cp target/release/hce dist/hce-linux-x86_64
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}
+          path: dist/
+
+  release-wasm-build:
+    if: github.event_name == 'workflow_dispatch' && inputs.release
+    needs: [test, wasm, integration]
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - run: wasm-pack build --target web crates/hce-wasm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-pkg
+          path: |
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm
+            crates/hce-wasm/pkg/hce_wasm.js
+            crates/hce-wasm/pkg/hce_wasm.d.ts
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts
+
   release:
     if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [test, stress, wasm, python, go, java, swift, audit, integration]
+    needs: [release-python-build, release-rust-build, release-wasm-build, go, java, swift, audit]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
@@ -300,38 +366,34 @@ jobs:
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build all artifacts
-        run: |
-          cargo build --release --workspace --exclude hce-py
-          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          wasm-pack build --target web crates/hce-wasm
-          pip install maturin
-          cd crates/hce-py && maturin build --release
+      - name: Download WASM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-pkg
+          path: crates/hce-wasm/pkg
 
-      - name: Verify artifacts
-        run: |
-          target/release/hce kat shared/kat
-          cp crates/hce-wasm/pkg/hce_wasm_bg.wasm bindings/npm/hce/index_bg.wasm
-          cp crates/hce-wasm/pkg/hce_wasm.js bindings/npm/hce/index.js
-          cp crates/hce-wasm/pkg/hce_wasm.d.ts bindings/npm/hce/index.d.ts
-          cd bindings/npm/hce && npm ci && npx vitest run
-          cd ${{ github.workspace }}
-          pip install $(python -c "import glob; print(glob.glob('target/wheels/hce-*.whl')[0])")
-          python crates/hce-py/tests/test_kat.py
+      - name: Download Python wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: target/wheels
+          merge-multiple: true
+
+      - name: Download Rust binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: dist
+          merge-multiple: true
 
       - name: Publish npm
         continue-on-error: true
@@ -339,6 +401,7 @@ jobs:
           cp crates/hce-wasm/pkg/hce_wasm_bg.wasm bindings/npm/hce/index_bg.wasm
           cp crates/hce-wasm/pkg/hce_wasm.js bindings/npm/hce/index.js
           cp crates/hce-wasm/pkg/hce_wasm.d.ts bindings/npm/hce/index.d.ts
+          cp crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts bindings/npm/hce/index_bg.wasm.d.ts
           cd bindings/npm/hce && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -372,6 +435,6 @@ jobs:
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/release/hce
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
