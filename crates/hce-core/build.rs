@@ -6,7 +6,7 @@ use std::path::Path;
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest = Path::new(&out_dir).join("packs.rs");
-    let packs_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../shared/packs");
+    let packs_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("packs");
 
     let mut f = BufWriter::new(File::create(&dest).unwrap());
 
@@ -131,5 +131,5 @@ fn main() {
         writeln!(f).unwrap();
     }
 
-    println!("cargo:rerun-if-changed=../../shared/packs/");
+    println!("cargo:rerun-if-changed=packs/");
 }
