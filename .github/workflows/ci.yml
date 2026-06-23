@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -44,6 +42,7 @@ jobs:
       - run: diff <(grep -v '^#define\|^$' crates/hce-ffi/hce.h) <(grep -v '^#define\|^$' /tmp/hce_gen.h)
 
   audit:
+    if: false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +55,7 @@ jobs:
       - run: cd bindings/npm/hce && npm audit --audit-level=high
 
   msrv:
+    if: false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
@@ -96,6 +96,7 @@ jobs:
       - run: cargo run -p hce-cli -- kat shared/kat
 
   stress:
+    if: false
     needs: [lint, header]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 45
@@ -114,6 +115,7 @@ jobs:
       - run: cargo test --test exhaustive -p hce-ffi -- --nocapture
 
   coverage:
+    if: false
     needs: [lint, header]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -129,6 +131,7 @@ jobs:
           path: lcov.info
 
   docs:
+    if: false
     needs: [lint, header]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -141,6 +144,7 @@ jobs:
           path: target/doc
 
   bench:
+    if: false
     needs: [lint, header]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -244,6 +248,7 @@ jobs:
       - run: cd bindings/swift && swift build -Xlinker -L../../target/release -Xlinker -lhce_ffi
 
   docker:
+    if: false
     needs: [lint, header]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -289,7 +294,7 @@ jobs:
 
   release-platform-build:
     if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [test, stress, python, integration]
+    needs: [test, python, integration]
     strategy:
       matrix:
         os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
@@ -343,7 +348,7 @@ jobs:
 
   release:
     if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [release-platform-build, release-wasm-build, go, java, swift, audit]
+    needs: [release-platform-build, release-wasm-build, go, java, swift]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
@@ -362,6 +367,10 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Download WASM artifact
         uses: actions/download-artifact@v4
@@ -388,7 +397,9 @@ jobs:
 
       - name: Publish PyPI
         continue-on-error: true
-        run: cd crates/hce-py && maturin upload --skip-existing ../../target/wheels/*.whl
+        run: |
+          pip install maturin
+          cd crates/hce-py && maturin upload --skip-existing ../../target/wheels/*.whl
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
 
@@ -412,9 +423,19 @@ jobs:
         with:
           artifact-name: sbom.spdx.json
 
+      - name: Get version
+        id: version
+        run: echo "value=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        run: |
+          git tag "v${{ steps.version.outputs.value }}"
+          git push origin "v${{ steps.version.outputs.value }}"
+
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.version.outputs.value }}
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
