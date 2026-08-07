@@ -1,4 +1,4 @@
-package com.github.tmddn3070.hce;
+package com.github.humancognition.hce;
 
 import com.sun.jna.*;
 import java.util.Arrays;
@@ -6,14 +6,37 @@ import java.util.List;
 
 public final class HceCodec implements AutoCloseable {
 
-    public static final int UNIVERSAL = 0, EU = 1, EN = 2, NUMERIC = 3;
+    public static final int UNIVERSAL = 0, EU = 1, EN = 2, NUMERIC = 3, KO = 4;
     public static final int SEALED = 0, OPEN = 1, PLAIN = 2;
     public static final int CASE_LOWER = 0, CASE_UPPER = 1;
     public static final int GRAN_SECOND = 0, GRAN_MINUTE = 1, GRAN_HOUR = 2,
                             GRAN_DAY = 3, GRAN_WEEK = 4, GRAN_MONTH = 5;
 
+    private static final String[] LIB_NAMES = {
+        "hce_ffi",                          // Linux
+        "hce_ffi",                          // macOS
+        "hce_ffi",                          // Windows (JNA appends .dll)
+    };
+
     interface Lib extends Library {
-        Lib INSTANCE = Native.load("hce_ffi", Lib.class);
+        Lib INSTANCE = loadNative();
+
+        private static Lib loadNative() {
+            try {
+                return Native.load("hce_ffi", Lib.class);
+            } catch (UnsatisfiedLinkError e) {
+                String libName = System.mapLibraryName("hce_ffi");
+                try (var in = HceCodec.class.getResourceAsStream("/native/" + libName)) {
+                    if (in != null) {
+                        java.nio.file.Path tmp = java.nio.file.Files.createTempFile("hce_ffi_", "." + libName);
+                        java.nio.file.Files.copy(in, tmp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        tmp.toFile().deleteOnExit();
+                        return Native.load(tmp.toAbsolutePath().toString(), Lib.class);
+                    }
+                } catch (Exception ignored) {}
+                throw e;
+            }
+        }
 
         Pointer hce_new(byte[] key, long keyLen, byte level, byte mode);
         void hce_destroy(Pointer h);
@@ -87,8 +110,8 @@ public final class HceCodec implements AutoCloseable {
     public HceCodec withModulus(long modulus) {
         Lib.INSTANCE.hce_with_domain_modulus(inner, modulus >>> 32, modulus & 0xFFFFFFFFL); return this; }
     public HceCodec withCipherFeistel(byte[] key) {
-        byte[] k = key != null ? key : new byte[0];
-        Lib.INSTANCE.hce_with_cipher_kind(inner, (byte)0, k, k.length); return this; }
+        if (key == null || key.length == 0) throw new IllegalArgumentException("feistel cipher requires a key");
+        Lib.INSTANCE.hce_with_cipher_kind(inner, (byte)0, key, key.length); return this; }
     public HceCodec withCipherShuffle() { Lib.INSTANCE.hce_with_cipher_kind(inner, (byte)1, null, 0); return this; }
     public HceCodec withCase(int caseVal) { Lib.INSTANCE.hce_with_case(inner, (byte) caseVal); return this; }
     public HceCodec withCheckSyllables(int n) { Lib.INSTANCE.hce_with_check_syllables(inner, n); return this; }

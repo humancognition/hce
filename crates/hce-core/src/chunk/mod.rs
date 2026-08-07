@@ -99,7 +99,9 @@ pub fn validate_separator(sep: char) -> bool {
     if sep.is_alphabetic() {
         return false;
     }
-    if pools::is_coda_char(sep) || pools::is_vowel_char(sep) {
+    if pools::is_coda_char(sep, crate::LanguageLevel::Universal)
+        || pools::is_vowel_char(sep, crate::LanguageLevel::Universal)
+    {
         return false;
     }
     true

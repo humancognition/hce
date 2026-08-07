@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.github.humancognition'
-version = '0.1.0'
+version = '0.1.2'
 
 java {
     withSourcesJar()
@@ -23,6 +23,14 @@ tasks.withType(Test) {
     systemProperty 'jna.library.path', file("${rootDir}/../../target/release").absolutePath
 }
 
+task copyNatives(type: Copy) {
+    from("${rootDir}/../../target/release") {
+        include '*.so', '*.dylib', '*.dll'
+    }
+    into layout.buildDirectory.dir('resources/main/native')
+}
+processResources.dependsOn copyNatives
+
 publishing {
     repositories {
         maven {
@@ -38,7 +46,7 @@ publishing {
         maven(MavenPublication) {
             groupId = 'com.github.humancognition'
             artifactId = 'hce'
-            version = '0.1.0'
+            version = '0.1.2'
             from components.java
             pom {
                 name = 'HCE'

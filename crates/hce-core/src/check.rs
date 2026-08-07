@@ -63,4 +63,47 @@ mod tests {
         body[0] = Token::onset((body[0].index() + 1) % constants::ONSET_RADIX);
         assert!(!verify_check(key, &body, &chk));
     }
+
+    #[test]
+    fn max_check_syllables() {
+        let key = b"check-test-key--32-bytes-xxxxx";
+        let body = encode::encode_tokens(42, constants::compute_syll_len(128));
+        let chk = compute_check(key, &body, 8);
+        assert_eq!(chk.len(), 16);
+        assert!(verify_check(key, &body, &chk));
+    }
+
+    #[test]
+    fn empty_body_produces_check() {
+        let key = b"check-test-key--32-bytes-xxxxx";
+        let body = encode::encode_tokens(0, 1);
+        let chk = compute_check(key, &body, 1);
+        assert!(!chk.is_empty());
+    }
+
+    #[test]
+    fn different_key_fails() {
+        let k1 = b"key-1--32-bytes-long-key-here";
+        let k2 = b"key-2--32-bytes-long-key-here";
+        let body = encode::encode_tokens(42, constants::compute_syll_len(128));
+        let chk = compute_check(k1, &body, 1);
+        assert!(!verify_check(k2, &body, &chk));
+    }
+
+    #[test]
+    fn every_token_position_detects_tamper() {
+        let key = b"check-test-key--32-bytes-xxxxx";
+        let sl = constants::compute_syll_len(128);
+        let body = encode::encode_tokens(42, sl);
+        let chk = compute_check(key, &body, 1);
+        for i in 0..body.len() {
+            let mut tampered = body.clone();
+            tampered[i] = Token::onset((tampered[i].index() + 1) % constants::ONSET_RADIX);
+            assert!(
+                !verify_check(key, &tampered, &chk),
+                "tamper at position {} not detected",
+                i
+            );
+        }
+    }
 }

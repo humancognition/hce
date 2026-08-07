@@ -1,5 +1,6 @@
 use crate::parser::{ParseError, Parser};
 use crate::token::Token;
+use crate::LanguageLevel;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NormalizeError {
@@ -13,9 +14,9 @@ pub struct Normalizer {
 }
 
 impl Normalizer {
-    pub const fn new() -> Self {
+    pub fn new(level: LanguageLevel) -> Self {
         Normalizer {
-            parser: Parser::new(),
+            parser: Parser::new(level),
         }
     }
 
@@ -50,12 +51,13 @@ impl Normalizer {
 
 impl Default for Normalizer {
     fn default() -> Self {
-        Self::new()
+        Self::new(LanguageLevel::Universal)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::LanguageLevel;
     use alloc::string::String;
 
     #[test]
@@ -74,7 +76,7 @@ mod tests {
         use super::Normalizer;
         use crate::constants;
         use crate::encode;
-        let n = Normalizer::new();
+        let n = Normalizer::new(LanguageLevel::Universal);
         let sl = constants::compute_syll_len(128);
         let body = encode::encode_tokens(42, sl);
         let post: String = body.iter().map(|t| t.display()).collect();

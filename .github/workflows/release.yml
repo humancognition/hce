@@ -1,0 +1,245 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      npm:
+        description: 'Publish to npm'
+        type: boolean
+        default: true
+      pypi:
+        description: 'Publish to PyPI'
+        type: boolean
+        default: true
+      cratesio:
+        description: 'Publish to crates.io'
+        type: boolean
+        default: true
+      java:
+        description: 'Publish to GitHub Packages'
+        type: boolean
+        default: true
+      elixir:
+        description: 'Publish to Hex.pm'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  platform-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build Rust binary and Python wheel
+        shell: bash
+        run: |
+          cargo build --release --workspace --exclude hce-py
+          mkdir -p dist
+          case "${{ runner.os }}" in
+            Linux)
+              cp target/release/libhce_ffi.so dist/libhce_ffi-linux-x86_64.so
+              cp target/release/hce dist/hce-linux-x86_64
+              ;;
+            macOS)
+              cp target/release/libhce_ffi.dylib dist/libhce_ffi-darwin-x86_64.dylib
+              cp target/release/hce dist/hce-darwin-x86_64
+              ;;
+            Windows)
+              cp target/release/hce_ffi.dll dist/hce_ffi-windows-x86_64.dll
+              cp target/release/hce.exe dist/hce-windows-x86_64.exe
+              ;;
+          esac
+          pip install maturin
+          cd crates/hce-py && maturin build --release
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            maturin sdist
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-${{ matrix.os }}
+          path: |
+            dist/
+            target/wheels/*.whl
+            target/wheels/*.tar.gz
+
+  wasm-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - run: wasm-pack build --target web crates/hce-wasm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-pkg
+          path: |
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm
+            crates/hce-wasm/pkg/hce_wasm.js
+            crates/hce-wasm/pkg/hce_wasm.d.ts
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts
+
+  sql-udf-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SQL UDF via Docker
+        run: |
+          docker build -t hce-udf -f- . <<'DOCKER_EOF'
+          FROM rust:1.85-slim AS builder
+          RUN apt-get update && apt-get install -y gcc libmariadb-dev
+          WORKDIR /build
+          COPY . .
+          RUN cargo build -p hce-ffi --release
+          RUN gcc -shared -fPIC -I/usr/include/mariadb \
+            bindings/sql/hce_udf.c -o libhce_udf.so \
+            -L target/release -lhce_ffi -ldl
+          FROM alpine:latest
+          COPY --from=builder /build/libhce_udf.so /
+          COPY --from=builder /build/target/release/libhce_ffi.so /
+          DOCKER_EOF
+          mkdir -p sql-out
+          docker create --name hce-udf-tmp hce-udf
+          docker cp hce-udf-tmp:/libhce_udf.so sql-out/
+          docker cp hce-udf-tmp:/libhce_ffi.so sql-out/
+          docker rm hce-udf-tmp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sql-udf
+          path: sql-out/
+
+  publish:
+    needs: [platform-build, wasm-build, sql-udf-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.17'
+          otp-version: '27'
+
+      - name: Download WASM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-pkg
+          path: crates/hce-wasm/pkg
+
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: platform-*
+          merge-multiple: true
+
+      - name: Download SQL UDF artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sql-udf
+          path: sql-out
+
+      - name: Publish npm
+        if: inputs.npm
+        continue-on-error: true
+        run: |
+          cp crates/hce-wasm/pkg/hce_wasm_bg.wasm bindings/npm/hce/index_bg.wasm
+          cp crates/hce-wasm/pkg/hce_wasm.js bindings/npm/hce/index.web.js
+          cp crates/hce-wasm/pkg/hce_wasm.d.ts bindings/npm/hce/index.web.d.ts
+          cp crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts bindings/npm/hce/index_bg.wasm.d.ts
+          cat > bindings/npm/hce/index.node.js << 'NODEEOF'
+          import { readFileSync } from "fs";
+          import { join, dirname } from "path";
+          import { fileURLToPath } from "url";
+          import { initSync, HceCodec } from "./index.web.js";
+          const __filename = fileURLToPath(import.meta.url);
+          const __dirname = dirname(__filename);
+          initSync(readFileSync(join(__dirname, "index_bg.wasm")));
+          export { HceCodec };
+          NODEEOF
+          cd bindings/npm/hce && npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish PyPI
+        if: inputs.pypi
+        continue-on-error: true
+        run: |
+          pip install maturin
+          cd crates/hce-py && maturin upload --skip-existing ../../target/wheels/*.whl ../../target/wheels/*.tar.gz
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Publish crates.io
+        if: inputs.cratesio
+        continue-on-error: true
+        run: |
+          for crate in hce-core hce-fpe hce-adapters hce-cli hce-ffi; do
+            echo "Publishing $crate..."
+            cargo publish -p "$crate" --allow-dirty || echo "  (skipped, may already exist)"
+            sleep 30
+          done
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
+
+      - name: Publish Java to GitHub Packages
+        if: inputs.java
+        continue-on-error: true
+        run: cd bindings/java && gradle publish -x test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Elixir to Hex
+        if: inputs.elixir
+        continue-on-error: true
+        run: |
+          cd bindings/elixir && mix deps.get && mix hex.publish package --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+
+      - name: Get version
+        id: version
+        run: echo "value=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Create tag and release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          name: v${{ steps.version.outputs.value }}
+          files: |
+            dist/*
+            sql-out/*
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm
+            crates/hce-wasm/pkg/hce_wasm.js
+            crates/hce-wasm/pkg/hce_wasm.d.ts
+            crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts
+            target/wheels/*.whl
+            target/wheels/*.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,13 @@
+[package]
+name = "hce_nif"
+version = "0.1.2"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.35.1"
+hce-core = { path = "../../../../crates/hce-core" }
+hce-fpe = { path = "../../../../crates/hce-fpe" }

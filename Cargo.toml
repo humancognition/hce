@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/hce-core", "crates/hce-adapters", "crates/hce-wasm", "crates/hce-cli", "crates/hce-ffi", "crates/hce-fpe", "crates/hce-py"]
+exclude = ["bindings/elixir/native/hce_nif"]
 default-members = ["crates/hce-core", "crates/hce-adapters", "crates/hce-wasm", "crates/hce-cli", "crates/hce-ffi", "crates/hce-fpe"]
 
 [workspace.package]

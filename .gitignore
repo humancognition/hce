@@ -35,8 +35,9 @@ wasm-pack.log
 *.old
 
 bindings/npm/hce/index_bg.wasm
-bindings/npm/hce/index.js
-bindings/npm/hce/index.d.ts
+bindings/npm/hce/index.web.js
+bindings/npm/hce/index.web.d.ts
+bindings/npm/hce/index.node.js
 bindings/npm/hce/index_bg.wasm.d.ts
 
 bindings/java/build/
@@ -53,3 +54,7 @@ bindings/go/hce
 scripts/phoible_verify_pools.py
 
 .cargo
+
+bindings/elixir/_build
+bindings/elixir/deps
+.vscode/launch.json

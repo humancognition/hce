@@ -3,13 +3,10 @@
 ## Install
 
 ```bash
-CGO_LDFLAGS="-L$(pwd)/target/release -lhce_ffi" go get github.com/humancognition/hce
-```
-
-Build hce-ffi first:
-
-```bash
-cargo build -p hce-ffi --release
+go generate ./...                    # builds libhce_ffi via cargo
+CGO_LDFLAGS="-L$(pwd)/target/release -lhce_ffi" \
+  CGO_CFLAGS="-I$(pwd)/crates/hce-ffi" \
+  go get github.com/humancognition/hce
 ```
 
 ## Usage

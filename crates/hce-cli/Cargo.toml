@@ -1,6 +1,6 @@
 [package]
 name = "hce-cli"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/humancognition/hce"
@@ -13,8 +13,8 @@ name = "hce"
 path = "src/main.rs"
 
 [dependencies]
-hce-core = { path = "../hce-core" }
-hce-fpe = { path = "../hce-fpe" }
+hce-core = { version = "0.1.2", path = "../hce-core" }
+hce-fpe = { version = "0.1.2", path = "../hce-fpe" }
 clap = { version = "4", features = ["derive"] }
 hex = "0.4"
 serde_json = "1"

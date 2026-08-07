@@ -40,7 +40,7 @@ hce.Hce(
 | Param | Type | Description |
 |-------|------|-------------|
 | `key` | `bytes \| None` | Encryption key bytes. `None` for plain mode. |
-| `level` | `str` | `"universal"`, `"eu"`, `"en"`, `"numeric"` |
+| `level` | `str` | `"universal"`, `"eu"`, `"en"`, `"numeric"`, `"ko"` |
 | `mode` | `str` | `"sealed"`, `"open"`, `"plain"` |
 | `bit_width` | `int` | `16`–`128`. Default `128`. |
 
@@ -117,10 +117,11 @@ Each level uses a different phoneme set:
 
 | Level | Onset | Vowel+Nucleus | Description |
 |-------|-------|---------------|-------------|
-| `universal` | 29 | 20 | Cross-lingual, PHOIBLE 40% threshold |
-| `eu` | 27 | 20 | European languages |
-| `en` | 24 | 18 | English-specific |
-| `numeric` | 10 | 5 | Numeric-style (0-9 mapped to phonemes) |
+| `universal` | 35 | 20 | Default phoneme inventory |
+| `eu` | 35 | 20 | Reserved for European variants |
+| `en` | 35 | 20 | Reserved for English variants |
+| `numeric` | 35 | 20 | Numeric-style |
+| `ko` | 35 | 20 | Korean-style Romanization |
 
 ## Modes
 

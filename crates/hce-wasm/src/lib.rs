@@ -2,14 +2,11 @@ use hce_core::{ChunkSpec, Hce, HceCase, HceMode, LanguageLevel, RecoveryResult, 
 use hce_fpe::{build_cipher, CipherKind};
 use wasm_bindgen::prelude::*;
 
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 #[cfg(target_arch = "wasm32")]
 #[link_section = "hce_metadata"]
 #[no_mangle]
 pub static HCE_META: [u8; 75] =
-    *b"hce-core:0.1.0\0onset:29\0vnuc:20\0coda:nlr\0syll:14\0fpe:feistel8\0hmac:sha256\0\0";
+    *b"hce-core:0.1.2\0onset:35\0vnuc:20\0coda:nlr\0syll:14\0fpe:feistel8\0hmac:sha256\0\0";
 
 #[wasm_bindgen]
 pub struct HceCodec {
@@ -25,9 +22,10 @@ impl HceCodec {
             "eu" | "e" => LanguageLevel::Eu,
             "en" => LanguageLevel::En,
             "numeric" | "n" => LanguageLevel::Numeric,
+            "ko" | "k" => LanguageLevel::Ko,
             _ => {
                 return Err(JsValue::from_str(
-                    "invalid level: use universal, eu, en, or numeric",
+                    "invalid level: use universal, eu, en, numeric, ko",
                 ))
             }
         };
@@ -93,6 +91,9 @@ impl HceCodec {
                 ))
             }
         };
+        if matches!(ck, CipherKind::Feistel8) && key.is_none() {
+            return Err(JsValue::from_str("feistel cipher requires a key"));
+        }
         let key_bytes = key.as_deref().map(|k| k.as_bytes().to_vec());
         let raw_key = key_bytes.as_deref();
         let fpe = build_cipher(ck, raw_key, self.inner.domain());

@@ -144,7 +144,8 @@ pub extern "C" fn hce_new_with_cipher(
         encrypt,
         decrypt,
     };
-    let hce = Hce::new(Option::<&[u8]>::None, level, hce_mode).with_cipher(Arc::new(fpe));
+    let hce =
+        Hce::new(Some(&hce_core::FIXED_PLAIN_KEY), level, hce_mode).with_cipher(Arc::new(fpe));
     let raw = RawHce(Arc::new(hce));
     Box::into_raw(Box::new(raw))
 }
@@ -865,7 +866,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_cipher_all_bit_widths() {
+    fn custom_cipher_128bit() {
         let vtable = FpeVtable {
             context: core::ptr::null_mut(),
             encrypt: Some(test_encrypt_cb),

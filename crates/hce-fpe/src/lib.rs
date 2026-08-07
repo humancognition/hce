@@ -15,7 +15,7 @@ pub fn build_cipher(
 ) -> Arc<dyn Fpe + Send + Sync> {
     match kind {
         CipherKind::Feistel8 => {
-            let k = key.unwrap_or(&hce_core::FIXED_PLAIN_KEY);
+            let k = key.expect("Feistel8 requires a key — None uses the public FIXED_PLAIN_KEY");
             Arc::new(Feistel::with_domain(k, domain))
         }
         CipherKind::Shuffle4 => Arc::new(FixedShuffle::with_domain(domain)),
@@ -57,9 +57,9 @@ mod tests {
     }
 
     #[test]
-    fn feistel8_default_key_works() {
-        let f = build_cipher(CipherKind::Feistel8, None, Domain::Bits(128));
-        assert_eq!(f.decrypt(f.encrypt(0, b"x"), b"x"), 0);
+    #[should_panic(expected = "Feistel8 requires a key")]
+    fn feistel8_rejects_none_key() {
+        build_cipher(CipherKind::Feistel8, None, Domain::Bits(128));
     }
 
     #[test]

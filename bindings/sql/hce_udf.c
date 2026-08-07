@@ -23,7 +23,13 @@ static int lib_loaded = 0;
 
 static void load_lib(void) {
     if (lib_loaded) return;
+#ifdef __APPLE__
+    void *h = dlopen("libhce_ffi.dylib", RTLD_NOW);
+#elif defined(_WIN32)
+    void *h = dlopen("hce_ffi.dll", RTLD_NOW);
+#else
     void *h = dlopen("libhce_ffi.so", RTLD_NOW);
+#endif
     if (!h) return;
     p_hce_new       = (fn_new)dlsym(h, "hce_new");
     p_hce_destroy   = (fn_destroy)dlsym(h, "hce_destroy");
@@ -33,14 +39,12 @@ static void load_lib(void) {
     lib_loaded = 1;
 }
 
-static uint8_t default_key[32] = "hce-kat-standard-key-32-bytes!!";
-
 static int parse_args(UDF_ARGS *args, uint8_t **key, size_t *key_len, uint8_t *level, uint8_t *mode) {
-    *key = default_key;
-    *key_len = 32;
+    if (args->arg_count < 1 || args->arg_type[0] != STRING_RESULT) return 0;
+    *key = NULL;
+    *key_len = 0;
     *level = 0;
     *mode = 0;
-    if (args->arg_count < 1 || args->arg_type[0] != STRING_RESULT) return 0;
     if (args->arg_count >= 2 && args->arg_type[1] == STRING_RESULT && args->lengths[1] > 0) {
         *key = (uint8_t *)args->args[1];
         *key_len = args->lengths[1];

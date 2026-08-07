@@ -30,7 +30,7 @@ SELECT HEX(hce_decodeode(hce_col, 'custom-32-byte-key-here-xxxxx!!', 0, 0)) FROM
 | `hce_encodeode(data, key?, level?, mode?)` | `data` BLOB, `key` VARCHAR, `level` INT, `mode` INT | VARCHAR |
 | `hce_decodeode(hce_str, key?, level?, mode?)` | `hce_str` VARCHAR, `key` VARCHAR, `level` INT, `mode` INT | BINARY(16) |
 
-Level: 0=universal, 1=eu, 2=en, 3=numeric
+Level: 0=universal, 1=eu, 2=en, 3=numeric, 4=ko
 Mode: 0=sealed, 1=open, 2=plain
 
 ## License

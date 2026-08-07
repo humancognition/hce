@@ -91,7 +91,7 @@ class TestOpen:
 
     def test_has_prefix(self, open_hce):
         enc = open_hce.encode(UUID)
-        assert enc.startswith("K")
+        assert enc.startswith("B")
 
     def test_timestamp_config(self, open_ts):
         enc = open_ts.encode(UUID)

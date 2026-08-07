@@ -1,4 +1,4 @@
-package com.github.tmddn3070.hce;
+package com.github.humancognition.hce;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,13 +26,13 @@ class HceCodecTest {
     @Test void openRoundtrip() {
         try (var h = new HceCodec(KEY, HceCodec.UNIVERSAL, HceCodec.OPEN)) {
             var enc = h.encode(UUID);
-            assertTrue(enc.startsWith("K"));
+            assertTrue(enc.startsWith("B"));
             assertArrayEquals(UUID, h.decode(enc));
         }
     }
 
     @Test void allLevels() {
-        for (int lv : new int[]{HceCodec.UNIVERSAL, HceCodec.EU, HceCodec.EN, HceCodec.NUMERIC}) {
+        for (int lv : new int[]{HceCodec.UNIVERSAL, HceCodec.EU, HceCodec.EN, HceCodec.NUMERIC, HceCodec.KO}) {
             try (var h = new HceCodec(KEY, lv, HceCodec.SEALED)) {
                 assertArrayEquals(UUID, h.decode(h.encode(UUID)));
             }

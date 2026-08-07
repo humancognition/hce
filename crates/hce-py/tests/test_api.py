@@ -88,10 +88,17 @@ def test_decode_invalid_raises():
         pass
 
 def test_all_levels():
-    for level in ("universal", "eu", "en", "numeric"):
+    for level in ("universal", "eu", "en", "numeric", "ko"):
         h = hce.Hce(key=KEY, level=level, mode="sealed")
         encoded = h.encode(UUID)
         assert h.decode(encoded) == UUID
+
+def test_ko_level_different_output():
+    h1 = hce.Hce(key=KEY, level="universal", mode="sealed")
+    h2 = hce.Hce(key=KEY, level="ko", mode="sealed")
+    e1 = h1.encode(UUID)
+    e2 = h2.encode(UUID)
+    assert e1 != e2, "ko level must produce different output from universal"
 
 def test_empty_key_rejected():
     try:
@@ -123,7 +130,7 @@ def test_custom_cipher_shuffle():
     assert h2.decode(e2) == UUID, "shuffle cipher roundtrip"
 
 def test_custom_cipher_feistel():
-    h = hce.Hce(key=KEY, level="universal", mode="sealed").with_cipher("feistel")
+    h = hce.Hce(key=KEY, level="universal", mode="sealed").with_cipher("feistel", KEY)
     encoded = h.encode(UUID)
     assert h.decode(encoded) == UUID, "feistel cipher roundtrip"
 

@@ -1,7 +1,9 @@
 defmodule Hce do
   @moduledoc "Lossless, pronounceable, encrypted codec."
 
-  @levels %{universal: 0, eu: 1, en: 2, numeric: 3}
+  import Bitwise
+
+  @levels %{universal: 0, eu: 1, en: 2, numeric: 3, ko: 4}
   @modes  %{sealed: 0, open: 1, plain: 2}
   @cases  %{lower: 0, upper: 1}
   @grans  %{second: 0, minute: 1, hour: 2, day: 3, week: 4, month: 5}
@@ -31,9 +33,8 @@ defmodule Hce do
 
   def with_bit_width(%Hce{ref: ref}, bits), do: (Hce.NIF.hce_with_bit_width(ref, bits); %Hce{ref: ref})
   def with_modulus(%Hce{ref: ref}, m), do: (Hce.NIF.hce_with_domain_modulus(ref, m >>> 32, m &&& 0xFFFFFFFF); %Hce{ref: ref})
-  def with_cipher_feistel(%Hce{ref: ref}, key \\ nil) do
-    key_bin = if is_nil(key), do: <<>>, else: key
-    Hce.NIF.hce_with_cipher_kind(ref, 0, key_bin, byte_size(key_bin)); %Hce{ref: ref}
+  def with_cipher_feistel(%Hce{ref: ref}, key) when is_binary(key) and byte_size(key) > 0 do
+    Hce.NIF.hce_with_cipher_kind(ref, 0, key, byte_size(key)); %Hce{ref: ref}
   end
   def with_cipher_shuffle(%Hce{ref: ref}), do: (Hce.NIF.hce_with_cipher_kind(ref, 1, <<>>, 0); %Hce{ref: ref})
   def with_case(%Hce{ref: ref}, case_val), do: (Hce.NIF.hce_with_case(ref, Map.fetch!(@cases, case_val)); %Hce{ref: ref})
