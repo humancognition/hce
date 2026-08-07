@@ -1,21 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { readFileSync } from "fs";
+import { describe, it, expect } from "vitest";
 import { randomBytes } from "crypto";
+import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { HceCodec } from "./index.node.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-let HceCodec;
-let initSync;
-
-beforeAll(async () => {
-  const wasmBytes = readFileSync(join(__dirname, "index_bg.wasm"));
-  const mod = await import(join(__dirname, "index.js"));
-  initSync = mod.initSync || mod.default;
-  HceCodec = mod.HceCodec;
-  initSync(wasmBytes);
-});
 
 const KEY = "hce-kat-standard-key-32-bytes!!";
 const KEY_HEX = Buffer.from(KEY).toString("hex");
@@ -49,10 +39,7 @@ describe("HceCodec constructor", () => {
 });
 
 describe("Sealed mode", () => {
-  let h;
-  beforeAll(() => {
-    h = new HceCodec(KEY_HEX, "universal", "sealed");
-  });
+  const h = new HceCodec(KEY_HEX, "universal", "sealed");
 
   it("encodes and decodes roundtrip", () => {
     const enc = h.encode(UUID_BYTES);
@@ -62,7 +49,7 @@ describe("Sealed mode", () => {
 
   it("output contains no prefix", () => {
     const enc = h.encode(UUID_BYTES);
-    expect(enc).not.toMatch(/^K/);
+    expect(enc).not.toMatch(/^B/);
   });
 
   it("empty input encodes", () => {
@@ -77,7 +64,9 @@ describe("Bit width variants", () => {
     it(`bit width ${bw} roundtrip`, () => {
       const h = new HceCodec(KEY_HEX, "universal", "sealed").withBitWidth(bw);
       const byteLen = Math.ceil(bw / 8);
-      const data = new Uint8Array(Array.from({ length: byteLen }, (_, i) => (i * 17 + 1) % 256));
+      const data = new Uint8Array(
+        Array.from({ length: byteLen }, (_, i) => (i * 17 + 1) % 256),
+      );
       const enc = h.encode(data);
       const dec = new Uint8Array(h.decode(enc));
       expect(dec.slice(16 - byteLen)).toEqual(data);
@@ -96,7 +85,9 @@ describe("Chunk modes", () => {
 describe("Custom cipher", () => {
   it("shuffle produces different output", () => {
     const h1 = new HceCodec(KEY_HEX, "universal", "sealed");
-    const h2 = new HceCodec(KEY_HEX, "universal", "sealed").withCipher("shuffle");
+    const h2 = new HceCodec(KEY_HEX, "universal", "sealed").withCipher(
+      "shuffle",
+    );
     const e1 = h1.encode(UUID_BYTES);
     const e2 = h2.encode(UUID_BYTES);
     expect(e1).not.toBe(e2);
@@ -113,17 +104,31 @@ describe("Recovery", () => {
   });
 });
 
+describe("Ko level", () => {
+  it("produces different output from universal", () => {
+    const h1 = new HceCodec(KEY_HEX, "universal", "sealed");
+    const h2 = new HceCodec(KEY_HEX, "ko", "sealed");
+    const e1 = h1.encode(UUID_BYTES);
+    const e2 = h2.encode(UUID_BYTES);
+    expect(e1).not.toBe(e2);
+    expect(new Uint8Array(h2.decode(e2))).toEqual(UUID_BYTES);
+  });
+});
+
 describe("KAT vectors", () => {
-  const levels = ["universal", "eu", "en", "numeric"];
+  const levels = ["universal", "eu", "en", "numeric", "ko"];
 
   for (const level of levels) {
     it(`${level} KAT`, () => {
       const kat = JSON.parse(
-        readFileSync(join(__dirname, "..", "..", "..", "shared", "kat", `${level}.json`), "utf8")
+        readFileSync(
+          join(__dirname, "..", "..", "..", "shared", "kat", `${level}.json`),
+          "utf8",
+        ),
       );
       for (const v of kat.vectors) {
         const uuidBytes = new Uint8Array(
-          v.uuid.match(/.{2}/g).map((h) => parseInt(h, 16))
+          v.uuid.match(/.{2}/g).map((h) => parseInt(h, 16)),
         );
         const mode = v.mode;
         const key = mode === "plain" ? null : KEY_HEX;
@@ -133,7 +138,9 @@ describe("KAT vectors", () => {
         expect(enc, `${level}[${v.index}] ${mode}`).toBe(v.hce);
 
         const dec = new Uint8Array(h.decode(v.hce));
-        expect(dec, `${level}[${v.index}] ${mode} roundtrip`).toEqual(uuidBytes);
+        expect(dec, `${level}[${v.index}] ${mode} roundtrip`).toEqual(
+          uuidBytes,
+        );
       }
     });
   }

@@ -1,5 +1,5 @@
-pub const ONSET_RADIX: u8 = 35;
-pub const VNUC_RADIX: u8 = 20;
+include!(concat!(env!("OUT_DIR"), "/radix_constants.rs"));
+
 pub const DEFAULT_BIT_WIDTH: u32 = 128;
 
 pub const FPE_ROUNDS: u8 = 8;

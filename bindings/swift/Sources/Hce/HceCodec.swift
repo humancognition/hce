@@ -69,7 +69,7 @@ struct RecoveryResult {
 public final class HceCodec {
     private var ptr: OpaquePointer?
 
-    public enum Level: UInt8 { case universal = 0, eu = 1, en = 2, numeric = 3 }
+    public enum Level: UInt8 { case universal = 0, eu = 1, en = 2, numeric = 3, ko = 4 }
     public enum Mode: UInt8  { case sealed = 0, open = 1, plain = 2 }
     public enum CipherCase: UInt8 { case lower = 0, upper = 1 }
     public enum Granularity: UInt8 { case second = 0, minute = 1, hour = 2, day = 3, week = 4, month = 5 }
@@ -85,9 +85,9 @@ public final class HceCodec {
 
     @discardableResult public func withBitWidth(_ bits: UInt32) -> Self { hce_with_bit_width(ptr, bits); return self }
     @discardableResult public func withModulus(_ m: UInt64) -> Self { hce_with_domain_modulus(ptr, UInt64(m >> 32), UInt64(m & 0xFFFF_FFFF)); return self }
-    @discardableResult public func withCipherFeistel(_ key: Data?) -> Self {
-        let kp = key?.withUnsafeBytes { $0.baseAddress?.assumingMemoryBound(to: UInt8.self) }
-        hce_with_cipher_kind(ptr, 0, kp, key?.count ?? 0); return self
+    @discardableResult public func withCipherFeistel(_ key: Data) -> Self {
+        let kp = key.withUnsafeBytes { $0.baseAddress?.assumingMemoryBound(to: UInt8.self) }
+        hce_with_cipher_kind(ptr, 0, kp, key.count); return self
     }
     @discardableResult public func withCipherShuffle() -> Self { hce_with_cipher_kind(ptr, 1, nil, 0); return self }
     @discardableResult public func withCase(_ c: CipherCase) -> Self { hce_with_case(ptr, c.rawValue); return self }

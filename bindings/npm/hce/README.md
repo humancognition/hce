@@ -1,18 +1,6 @@
-# hce
+# @humancognition/hce
 
 Lossless, pronounceable, encrypted codec for any identifier.
-
-```js
-import { randomBytes } from "crypto";
-
-const key = Buffer.from("32-byte-secret-key-here-xxxxxx!!").toString("hex");
-const hce = new HceCodec(key, "universal", "sealed");
-
-const id = hce.encode(randomBytes(16));
-//=> "PETREN-NISLORPEN-LAFLER-SRORGULGOLFUN-PREPLEN"
-
-const uuid = hce.decode(id);
-```
 
 ## Install
 
@@ -20,45 +8,47 @@ const uuid = hce.decode(id);
 npm install @humancognition/hce
 ```
 
-## API
+## Usage
 
-```ts
-new HceCodec(key: string | null, level: string, mode: string): HceCodec
-hce.encode(data: Uint8Array): string
-hce.decode(input: string): Uint8Array
-hce.recover(input: string): Uint8Array
-```
-
-### Configuration
-
-```ts
-hce.withBitWidth(32 | 64 | 96 | 128)       // default 128
-hce.withDomainModulus(n: string)             // decimal string
-hce.withCase(uppercase: boolean)             // default true
-hce.withCheckSyllables(n: number)            // default 1
-hce.withSeparator(sep: string)               // default "-"
-hce.withChunkNone()
-hce.withChunkFixed(charSize: number)
-hce.withChunkPattern(pattern: number[])
-hce.withCipher("feistel" | "shuffle", key?: string)
-hce.withTimestampConfig(epochMs: number, gran: string)
-```
-
-## Node.js
+Node.js — zero setup, WASM inlined:
 
 ```js
-import { readFileSync } from "fs";
-import { initSync, HceCodec } from "@humancognition/hce";
+import { HceCodec } from "@humancognition/hce";
 
-const wasm = readFileSync("node_modules/@humancognition/hce/index_bg.wasm");
-initSync(wasm);
+const key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const hce = new HceCodec(key, "universal", "sealed");
+
+const id = hce.encode(crypto.randomBytes(16));
+const bytes = hce.decode(id);
 ```
 
-## Browser
+Browser — one-line init:
 
 ```js
 import init, { HceCodec } from "@humancognition/hce";
 await init();
+const hce = new HceCodec(key, "universal", "sealed");
+```
+
+## API
+
+```ts
+class HceCodec {
+  constructor(key: string | null, level: string, mode: string)
+  encode(data: Uint8Array): string
+  decode(input: string): Uint8Array
+  recover(input: string): Uint8Array
+  withBitWidth(bits: number): HceCodec
+  withCase(uppercase: boolean): HceCodec
+  withCheckSyllables(n: number): HceCodec
+  withSeparator(sep: string): HceCodec
+  withChunkNone(): HceCodec
+  withChunkFixed(charSize: number): HceCodec
+  withChunkPattern(pattern: number[]): HceCodec
+  withCipher(kind: "feistel" | "shuffle", key?: string): HceCodec
+  withTimestampConfig(epochMs: number, gran: string): HceCodec
+  withDomainModulus(n: string): HceCodec
+}
 ```
 
 ## License

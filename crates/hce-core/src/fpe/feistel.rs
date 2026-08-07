@@ -98,13 +98,7 @@ impl Fpe for Feistel {
             c = ((left as u128) << self.half) | (right as u128);
             attempts += 1;
         }
-        debug_assert!(
-            c <= max,
-            "cycle-walk failed after {} attempts: c={} max={}",
-            attempts,
-            c,
-            max
-        );
+        debug_assert!(c <= max, "cycle-walk failed after {} attempts", attempts);
         c
     }
 
@@ -244,5 +238,42 @@ mod tests {
             assert!(c < n);
             assert_eq!(f.decrypt(c, b"t"), p);
         }
+    }
+
+    #[test]
+    fn tiny_domain_cycle_walk() {
+        let f = Feistel::with_domain(b"32-bytes-key-for-testing-hmac!!", Domain::Modulus(3));
+        for p in 0u128..3 {
+            let c = f.encrypt(p, b"t");
+            assert!(c < 3, "cipher {} >= domain 3", c);
+            assert_eq!(f.decrypt(c, b"t"), p);
+        }
+    }
+
+    #[test]
+    fn modulus_2_is_permutation() {
+        let f = Feistel::with_domain(b"32-bytes-key-for-testing-hmac!!", Domain::Modulus(2));
+        let c0 = f.encrypt(0, b"t");
+        let c1 = f.encrypt(1, b"t");
+        assert!(c0 < 2 && c1 < 2);
+        assert_ne!(c0, c1);
+        assert_eq!(f.decrypt(c0, b"t"), 0);
+        assert_eq!(f.decrypt(c1, b"t"), 1);
+    }
+
+    #[test]
+    fn different_keys_different_output() {
+        let f1 = Feistel::new(b"key-1--32-bytes-long-key-here!!");
+        let f2 = Feistel::new(b"key-2--32-bytes-long-key-here!!");
+        assert_ne!(f1.encrypt(42, b"t"), f2.encrypt(42, b"t"));
+    }
+
+    #[test]
+    fn decrypt_invalid_cipher_reversible() {
+        let f = Feistel::new(b"32-bytes-key-for-testing-hmac!!");
+        let c = f.encrypt(0, b"t");
+        let manipulated = c ^ 1;
+        let d = f.decrypt(manipulated, b"t");
+        assert_eq!(f.encrypt(d, b"t"), manipulated);
     }
 }

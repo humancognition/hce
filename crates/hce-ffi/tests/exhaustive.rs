@@ -23,7 +23,7 @@ fn roundtrip_ffi(h: *mut RawHce, data: &[u8], byte_len: usize) {
 
 #[test]
 fn ffi_combinatorial_levels_modes() {
-    let levels: [u8; 4] = [0, 1, 2, 3];
+    let levels: [u8; 5] = [0, 1, 2, 3, 4];
     let mode_info: [(u8, bool); 3] = [(0, false), (1, false), (2, true)];
     let mut seed: u64 = 0xB00B;
     for &lb in &levels {

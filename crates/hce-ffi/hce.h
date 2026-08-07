@@ -11,6 +11,7 @@
 #define HCE_LEVEL_EU          1
 #define HCE_LEVEL_EN          2
 #define HCE_LEVEL_NUMERIC     3
+#define HCE_LEVEL_KO          4
 #define HCE_MODE_SEALED       0
 #define HCE_MODE_OPEN         1
 #define HCE_MODE_PLAIN        2

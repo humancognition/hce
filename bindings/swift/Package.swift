@@ -3,6 +3,10 @@ import PackageDescription
 
 let package = Package(
     name: "Hce",
+    platforms: [.macOS(.v14)],
+    products: [
+        .library(name: "Hce", targets: ["Hce"]),
+    ],
     targets: [
         .target(
             name: "Hce",

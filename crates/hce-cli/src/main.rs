@@ -122,6 +122,8 @@ enum LevelArg {
     En,
     #[value(name = "numeric", alias = "n")]
     Numeric,
+    #[value(name = "ko", alias = "k")]
+    Ko,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -179,6 +181,7 @@ impl From<LevelArg> for LanguageLevel {
             LevelArg::Eu => LanguageLevel::Eu,
             LevelArg::En => LanguageLevel::En,
             LevelArg::Numeric => LanguageLevel::Numeric,
+            LevelArg::Ko => LanguageLevel::Ko,
         }
     }
 }

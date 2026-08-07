@@ -4,14 +4,8 @@
 
 ```elixir
 def deps do
-  [{:hce, path: "bindings/elixir"}]
+  [{:hce, "~> 0.1"}]
 end
-```
-
-Requires `libhce_ffi` built:
-
-```bash
-cargo build -p hce-ffi --release
 ```
 
 ## Usage

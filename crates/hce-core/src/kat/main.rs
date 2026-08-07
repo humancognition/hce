@@ -47,6 +47,7 @@ fn main() {
         (LanguageLevel::Eu, "eu"),
         (LanguageLevel::En, "en"),
         (LanguageLevel::Numeric, "numeric"),
+        (LanguageLevel::Ko, "ko"),
     ];
 
     let modes = [
@@ -117,5 +118,5 @@ fn main() {
         eprintln!("  {}: {} vectors → {}", level_name, count, output.display());
     }
 
-    eprintln!("Done — 4 levels × {} = {} total vectors", count, count * 4);
+    eprintln!("Done — 5 levels × {} = {} total vectors", count, count * 5);
 }

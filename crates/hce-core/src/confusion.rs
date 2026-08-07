@@ -1,4 +1,5 @@
 use crate::token::Token;
+use crate::LanguageLevel;
 
 #[derive(Debug, Clone)]
 pub struct ConfusionMatrix {
@@ -7,6 +8,7 @@ pub struct ConfusionMatrix {
 
 impl ConfusionMatrix {
     pub fn universal() -> Self {
+        let level = LanguageLevel::Universal;
         let mut pairs = alloc::vec::Vec::new();
 
         add_sym(&mut pairs, Token::onset(4), Token::onset(5));
@@ -20,22 +22,22 @@ impl ConfusionMatrix {
             if let (Some(first), Some(second)) = (cluster.chars().next(), cluster.chars().nth(1)) {
                 let alt_second = if second == 'l' { 'r' } else { 'l' };
                 let alt = alloc::format!("{}{}", first, alt_second);
-                if let Some(alt_idx) = crate::pools::onset_index_from_str(&alt) {
+                if let Some(alt_idx) = crate::pools::onset_index_from_str(&alt, level) {
                     add_sym(&mut pairs, Token::onset(onset_idx), Token::onset(alt_idx));
                 }
             }
         }
 
-        add_vnuc_sym(&mut pairs, "an", "al");
-        add_vnuc_sym(&mut pairs, "al", "ar");
-        add_vnuc_sym(&mut pairs, "en", "el");
-        add_vnuc_sym(&mut pairs, "el", "er");
-        add_vnuc_sym(&mut pairs, "in", "il");
-        add_vnuc_sym(&mut pairs, "il", "ir");
-        add_vnuc_sym(&mut pairs, "on", "ol");
-        add_vnuc_sym(&mut pairs, "ol", "or");
-        add_vnuc_sym(&mut pairs, "un", "ul");
-        add_vnuc_sym(&mut pairs, "ul", "ur");
+        add_vnuc_sym(&mut pairs, "an", "al", level);
+        add_vnuc_sym(&mut pairs, "al", "ar", level);
+        add_vnuc_sym(&mut pairs, "en", "el", level);
+        add_vnuc_sym(&mut pairs, "el", "er", level);
+        add_vnuc_sym(&mut pairs, "in", "il", level);
+        add_vnuc_sym(&mut pairs, "il", "ir", level);
+        add_vnuc_sym(&mut pairs, "on", "ol", level);
+        add_vnuc_sym(&mut pairs, "ol", "or", level);
+        add_vnuc_sym(&mut pairs, "un", "ul", level);
+        add_vnuc_sym(&mut pairs, "ul", "ur", level);
 
         ConfusionMatrix { pairs }
     }
@@ -67,10 +69,15 @@ fn add_sym(pairs: &mut alloc::vec::Vec<(Token, alloc::vec::Vec<Token>)>, a: Toke
     }
 }
 
-fn add_vnuc_sym(pairs: &mut alloc::vec::Vec<(Token, alloc::vec::Vec<Token>)>, a: &str, b: &str) {
+fn add_vnuc_sym(
+    pairs: &mut alloc::vec::Vec<(Token, alloc::vec::Vec<Token>)>,
+    a: &str,
+    b: &str,
+    level: LanguageLevel,
+) {
     if let (Some(ai), Some(bi)) = (
-        crate::pools::vnuc_index_from_str(a),
-        crate::pools::vnuc_index_from_str(b),
+        crate::pools::vnuc_index_from_str(a, level),
+        crate::pools::vnuc_index_from_str(b, level),
     ) {
         add_sym(pairs, Token::vnuc(ai), Token::vnuc(bi));
     }
@@ -96,29 +103,29 @@ mod tests {
     #[test]
     fn cluster_bl_has_neighbor_br() {
         let cm = ConfusionMatrix::universal();
-        let bl_idx = pools::onset_index_from_str("bl").unwrap();
+        let bl_idx = pools::onset_index_from_str("bl", LanguageLevel::Universal).unwrap();
         let neighbors = cm.neighbors(Token::onset(bl_idx));
-        let has_br = neighbors
-            .iter()
-            .any(|&t| t.index() == pools::onset_index_from_str("br").unwrap());
+        let has_br = neighbors.iter().any(|&t| {
+            t.index() == pools::onset_index_from_str("br", LanguageLevel::Universal).unwrap()
+        });
         assert!(has_br);
     }
 
     #[test]
     fn cluster_sl_has_neighbor_sr() {
         let cm = ConfusionMatrix::universal();
-        let sl_idx = pools::onset_index_from_str("sl").unwrap();
+        let sl_idx = pools::onset_index_from_str("sl", LanguageLevel::Universal).unwrap();
         let neighbors = cm.neighbors(Token::onset(sl_idx));
-        let has_sr = neighbors
-            .iter()
-            .any(|&t| t.index() == pools::onset_index_from_str("sr").unwrap());
+        let has_sr = neighbors.iter().any(|&t| {
+            t.index() == pools::onset_index_from_str("sr", LanguageLevel::Universal).unwrap()
+        });
         assert!(has_sr);
     }
 
     #[test]
     fn vnuc_an_has_neighbor_al() {
         let cm = ConfusionMatrix::universal();
-        let an_idx = pools::vnuc_index_from_str("an").unwrap();
+        let an_idx = pools::vnuc_index_from_str("an", LanguageLevel::Universal).unwrap();
         let neighbors = cm.neighbors(Token::vnuc(an_idx));
         assert!(!neighbors.is_empty());
     }

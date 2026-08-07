@@ -8,14 +8,16 @@ Add to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(path: "bindings/swift"),
+    .package(url: "https://github.com/humancognition/hce", from: "0.1.0"),
 ],
 targets: [
-    .target(name: "MyApp", dependencies: ["Hce"]),
+    .target(name: "MyApp", dependencies: [
+        .product(name: "Hce", package: "hce"),
+    ]),
 ]
 ```
 
-Requires `libhce_ffi.dylib` built:
+Requires `libhce_ffi` built:
 
 ```bash
 cargo build -p hce-ffi --release

@@ -18,6 +18,7 @@ impl PyHce {
             "eu" => LanguageLevel::Eu,
             "en" => LanguageLevel::En,
             "numeric" => LanguageLevel::Numeric,
+            "ko" => LanguageLevel::Ko,
             _ => {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "level must be one of: universal, eu, en, numeric",

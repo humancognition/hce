@@ -14,7 +14,9 @@ func TestSealedRoundtrip(t *testing.T) {
 	defer c.Close()
 	enc, _ := c.Encode(testUUID)
 	dec, _ := c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("sealed roundtrip failed") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("sealed roundtrip failed")
+	}
 }
 
 func TestPlainRoundtrip(t *testing.T) {
@@ -22,25 +24,33 @@ func TestPlainRoundtrip(t *testing.T) {
 	defer c.Close()
 	enc, _ := c.Encode(testUUID)
 	dec, _ := c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("plain roundtrip failed") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("plain roundtrip failed")
+	}
 }
 
 func TestOpenRoundtrip(t *testing.T) {
 	c, _ := New(testKey, Universal, Open)
 	defer c.Close()
 	enc, _ := c.Encode(testUUID)
-	if !bytes.HasPrefix([]byte(enc), []byte("K")) { t.Fatal("open mode should have K prefix") }
+	if !bytes.HasPrefix([]byte(enc), []byte("B")) {
+		t.Fatal("open mode should have B prefix")
+	}
 	dec, _ := c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("open roundtrip failed") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("open roundtrip failed")
+	}
 }
 
 func TestAllLevels(t *testing.T) {
-	levels := []Level{Universal, Eu, En, Numeric}
+	levels := []Level{Universal, Eu, En, Numeric, Ko}
 	for _, lv := range levels {
 		c, _ := New(testKey, lv, Sealed)
 		enc, _ := c.Encode(testUUID)
 		dec, _ := c.Decode(enc)
-		if !bytes.Equal(dec, testUUID) { t.Fatalf("level %d roundtrip failed", lv) }
+		if !bytes.Equal(dec, testUUID) {
+			t.Fatalf("level %d roundtrip failed", lv)
+		}
 		c.Close()
 	}
 }
@@ -51,12 +61,20 @@ func TestBitWidths(t *testing.T) {
 		c.WithBitWidth(bw)
 		blen := int((bw + 7) / 8)
 		data := make([]byte, blen)
-		for i := 0; i < blen; i++ { data[i] = byte((i*17 + 1) % 256) }
+		for i := 0; i < blen; i++ {
+			data[i] = byte((i*17 + 1) % 256)
+		}
 		enc, err := c.Encode(data)
-		if err != nil { t.Fatalf("bw=%d encode: %v", bw, err) }
+		if err != nil {
+			t.Fatalf("bw=%d encode: %v", bw, err)
+		}
 		dec, err := c.Decode(enc)
-		if err != nil { t.Fatalf("bw=%d decode: %v", bw, err) }
-		if !bytes.Equal(dec[16-blen:], data) { t.Fatalf("bw=%d mismatch", bw) }
+		if err != nil {
+			t.Fatalf("bw=%d decode: %v", bw, err)
+		}
+		if !bytes.Equal(dec[16-blen:], data) {
+			t.Fatalf("bw=%d mismatch", bw)
+		}
 		c.Close()
 	}
 }
@@ -67,10 +85,14 @@ func TestWithCase(t *testing.T) {
 		c.WithCase(cas)
 		enc, _ := c.Encode(testUUID)
 		dec, _ := c.Decode(enc)
-		if !bytes.Equal(dec, testUUID) { t.Fatal("case roundtrip failed") }
+		if !bytes.Equal(dec, testUUID) {
+			t.Fatal("case roundtrip failed")
+		}
 		if cas == Lower {
 			for _, ch := range enc {
-				if ch >= 'A' && ch <= 'Z' { t.Fatal("lowercase output has uppercase") }
+				if ch >= 'A' && ch <= 'Z' {
+					t.Fatal("lowercase output has uppercase")
+				}
 			}
 		}
 		c.Close()
@@ -83,7 +105,9 @@ func TestCheckSyllables(t *testing.T) {
 		c.WithCheckSyllables(n)
 		enc, _ := c.Encode(testUUID)
 		dec, _ := c.Decode(enc)
-		if !bytes.Equal(dec, testUUID) { t.Fatalf("check=%d failed", n) }
+		if !bytes.Equal(dec, testUUID) {
+			t.Fatalf("check=%d failed", n)
+		}
 		c.Close()
 	}
 }
@@ -92,23 +116,31 @@ func TestChunkModes(t *testing.T) {
 	c, _ := New(testKey, Universal, Sealed)
 	c.WithChunkNone()
 	enc, _ := c.Encode(testUUID)
-	if bytes.Contains([]byte(enc), []byte{'-'}) { t.Fatal("chunk_none has hyphens") }
+	if bytes.Contains([]byte(enc), []byte{'-'}) {
+		t.Fatal("chunk_none has hyphens")
+	}
 	dec, _ := c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("chunk_none roundtrip") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("chunk_none roundtrip")
+	}
 	c.Close()
 
 	c, _ = New(testKey, Universal, Sealed)
 	c.WithChunkFixed(7)
 	enc, _ = c.Encode(testUUID)
 	dec, _ = c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("chunk_fixed roundtrip") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("chunk_fixed roundtrip")
+	}
 	c.Close()
 
 	c, _ = New(testKey, Universal, Sealed)
 	c.WithChunkPattern([]int{3, 3, 4, 4})
 	enc, _ = c.Encode(testUUID)
 	dec, _ = c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("chunk_pattern roundtrip") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("chunk_pattern roundtrip")
+	}
 	c.Close()
 }
 
@@ -116,9 +148,13 @@ func TestSeparator(t *testing.T) {
 	c, _ := New(testKey, Universal, Sealed)
 	c.WithSeparator('.')
 	enc, _ := c.Encode(testUUID)
-	if !bytes.Contains([]byte(enc), []byte{'.'}) { t.Fatal("separator dot not in output") }
+	if !bytes.Contains([]byte(enc), []byte{'.'}) {
+		t.Fatal("separator dot not in output")
+	}
 	dec, _ := c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("separator roundtrip") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("separator roundtrip")
+	}
 	c.Close()
 }
 
@@ -127,26 +163,37 @@ func TestTimestampConfig(t *testing.T) {
 	c.WithTimestampConfig(1800000000000, GranMonth)
 	enc, _ := c.Encode(testUUID)
 	dec, _ := c.Decode(enc)
-	if !bytes.Equal(dec, testUUID) { t.Fatal("timestamp roundtrip") }
+	if !bytes.Equal(dec, testUUID) {
+		t.Fatal("timestamp roundtrip")
+	}
 	c.Close()
 }
 
 func TestSealedNeedsKey(t *testing.T) {
-	if _, err := New(nil, Universal, Sealed); err == nil { t.Fatal("expected error") }
+	if _, err := New(nil, Universal, Sealed); err == nil {
+		t.Fatal("expected error")
+	}
 }
 
 func TestEmptyInput(t *testing.T) {
 	c, _ := New(testKey, Universal, Sealed)
 	defer c.Close()
-	if _, err := c.Encode([]byte{}); err == nil { t.Fatal("expected error for empty input") }
+	_, err := c.Encode([]byte{})
+	if err == nil {
+		t.Fatal("empty input should error via FFI")
+	}
 }
 
 func TestMaxValue(t *testing.T) {
 	c, _ := New(testKey, Universal, Sealed)
 	defer c.Close()
 	data := make([]byte, 16)
-	for i := range data { data[i] = 0xFF }
+	for i := range data {
+		data[i] = 0xFF
+	}
 	enc, _ := c.Encode(data)
 	dec, _ := c.Decode(enc)
-	if !bytes.Equal(dec, data) { t.Fatal("max value roundtrip") }
+	if !bytes.Equal(dec, data) {
+		t.Fatal("max value roundtrip")
+	}
 }

@@ -3,7 +3,7 @@
 Lossless, pronounceable, encrypted codec for any identifier — reversible, format-preserving, human-readable.
 
 - **Encrypted.** HMAC-SHA256 Feistel FPE (8 rounds). Custom cipher injection.
-- **Pronounceable.** 35 phonemic onsets × 20 vowel nuclei across 4 languages.
+- **Pronounceable.** 35 phonemic onsets × 20 vowel nuclei.
 - **Self-recovering.** Corrects common phoneme confusions.
 - **Format-preserving.** 128-bit input → ~50 char output. Configurable chunking.
 - **Multi-platform.** Rust, C, WASM, Python, Go, Java, Swift, Elixir, SQL.
@@ -48,7 +48,7 @@ hce-core = "0.1"
 ```
 
 ```bash
-npm install hce
+npm install @humancognition/hce
 pip install hce
 cargo install hce-cli
 ```
@@ -94,18 +94,22 @@ hce.with_cipher(Arc<dyn Fpe>) // custom FPE
 
 | Level | Onsets | Vowel+Nucleus | Radix | Description |
 |-------|--------|---------------|-------|-------------|
-| `Universal` | 35 | 20 | 700 | Cross-lingual, PHOIBLE 40% threshold |
-| `Eu` | 35 | 20 | 700 | European languages |
-| `En` | 35 | 20 | 700 | English-specific |
-| `Numeric` | 35 | 20 | 700 | Numeric-style (text representation) |
+| `Universal` | 35 | 20 | 700 | Default phoneme inventory |
+| `Eu` | 35 | 20 | 700 | Reserved for European variants |
+| `En` | 35 | 20 | 700 | Reserved for English variants |
+| `Numeric` | 35 | 20 | 700 | Numeric-style |
+| `Ko` | 35 | 20 | 700 | Korean-style Romanization |
 
 ## Modes
 
 | Mode | Check | Timestamp | Purpose |
 |------|-------|-----------|---------|
 | `Sealed` | HMAC-SHA256 | No | Full confidentiality + integrity |
-| `Open` | HMAC-SHA256 | Yes | Sortable, timestamp-prefixed |
+| `Open` | HMAC-SHA256 | Yes | Sortable (approximate: Month = 30-day fixed) |
 | `Plain` | CRC | No | No encryption, CRC integrity only |
+
+> **Key required**: `Sealed` and `Open` modes require a non-empty key. `Plain` mode accepts `None`. Passing `None` to `Sealed` or `Open` will panic.
+>
 
 ## Other Languages
 

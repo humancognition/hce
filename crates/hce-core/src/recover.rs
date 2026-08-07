@@ -158,7 +158,8 @@ mod tests {
             let body = encode::encode_tokens(p, sl);
             let chk = check::compute_check(key, &body, 1);
 
-            let an_idx = crate::pools::vnuc_index_from_str("an").unwrap();
+            let an_idx =
+                crate::pools::vnuc_index_from_str("an", crate::LanguageLevel::Universal).unwrap();
             let mut found = None;
             for (i, t) in body.iter().enumerate() {
                 if t.is_vnuc() && t.index() == an_idx {
@@ -168,7 +169,9 @@ mod tests {
             }
 
             if let Some(pos) = found {
-                let al_idx = crate::pools::vnuc_index_from_str("al").unwrap();
+                let al_idx =
+                    crate::pools::vnuc_index_from_str("al", crate::LanguageLevel::Universal)
+                        .unwrap();
                 let mut tampered = body;
                 tampered[pos] = Token::vnuc(al_idx);
                 let result = r.recover(key, &tampered, &chk);
@@ -188,5 +191,16 @@ mod tests {
             }
         }
         panic!("no payload with vnuc-an found");
+    }
+
+    #[test]
+    fn recovery_works_across_levels() {
+        let key = b"recover-test-key-32-bytes--xx";
+        let sl = constants::compute_syll_len(128);
+        let body = encode::encode_tokens(42, sl);
+        let chk = check::compute_check(key, &body, 1);
+        let cm = ConfusionMatrix::universal();
+        let r = Recoverer::new(&cm);
+        assert_eq!(r.recover(key, &body, &chk), RecoveryResult::Ok);
     }
 }

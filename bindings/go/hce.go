@@ -1,7 +1,12 @@
 package hce
 
+//go:generate cargo build -p hce-ffi --release --manifest-path ../../Cargo.toml
+
 /*
 #cgo LDFLAGS: -L${SRCDIR}/../../target/release -lhce_ffi -ldl -lm
+#cgo linux LDFLAGS: -Wl,-rpath,${SRCDIR}/../../target/release
+#cgo darwin LDFLAGS: -Wl,-rpath,${SRCDIR}/../../target/release
+#cgo windows LDFLAGS: -L${SRCDIR}/../../target/release -lhce_ffi
 #include "../../crates/hce-ffi/hce.h"
 #include <stdlib.h>
 */
@@ -19,6 +24,7 @@ const (
 	Eu        Level = C.HCE_LEVEL_EU
 	En        Level = C.HCE_LEVEL_EN
 	Numeric   Level = C.HCE_LEVEL_NUMERIC
+	Ko        Level = C.HCE_LEVEL_KO
 )
 
 type Mode uint8
@@ -118,13 +124,10 @@ func (c *Codec) WithModulus(hi uint64, lo uint64) {
 }
 
 func (c *Codec) WithCipherFeistel(key []byte) {
-	var kp *C.uint8_t
-	var kl C.size_t
-	if len(key) > 0 {
-		kp = (*C.uint8_t)(unsafe.Pointer(&key[0]))
-		kl = C.size_t(len(key))
+	if len(key) == 0 {
+		panic("hce: feistel cipher requires a key")
 	}
-	C.hce_with_cipher_kind(c.inner, 0, kp, kl)
+	C.hce_with_cipher_kind(c.inner, 0, (*C.uint8_t)(unsafe.Pointer(&key[0])), C.size_t(len(key)))
 }
 
 func (c *Codec) WithCipherShuffle() {
@@ -136,7 +139,9 @@ func (c *Codec) Recover(input string) ([]byte, error) {
 	defer C.free(unsafe.Pointer(cs))
 	r := C.hce_recover(c.inner, (*C.uint8_t)(unsafe.Pointer(cs)), C.size_t(len(input)))
 	defer C.hce_free_recovery_result(r)
-	if !r.ok { return nil, fmt.Errorf("hce: recover error %d", int(r.err_code)) }
+	if !r.ok {
+		return nil, fmt.Errorf("hce: recover error %d", int(r.err_code))
+	}
 	if r.corrected_len > 0 && r.corrected != nil {
 		out := make([]byte, int(r.corrected_len))
 		copy(out, C.GoBytes(unsafe.Pointer(r.corrected), C.int(r.corrected_len)))
@@ -146,14 +151,15 @@ func (c *Codec) Recover(input string) ([]byte, error) {
 }
 
 func (c *Codec) Encode(data []byte) (string, error) {
-	if len(data) == 0 {
-		return "", errors.New("hce: empty input")
+	var ptr *C.uint8_t
+	if len(data) > 0 {
+		ptr = (*C.uint8_t)(unsafe.Pointer(&data[0]))
 	}
-	r := C.hce_encode(c.inner, (*C.uint8_t)(unsafe.Pointer(&data[0])), C.size_t(len(data)))
+	r := C.hce_encode(c.inner, ptr, C.size_t(len(data)))
+	defer C.hce_free_result(r)
 	if !r.ok {
 		return "", fmt.Errorf("hce: encode error %d", int(r.err_code))
 	}
-	defer C.hce_free_result(r)
 	return C.GoStringN((*C.char)(unsafe.Pointer(r.data)), C.int(r.len)), nil
 }
 
@@ -161,10 +167,10 @@ func (c *Codec) Decode(input string) ([]byte, error) {
 	cs := C.CString(input)
 	defer C.free(unsafe.Pointer(cs))
 	r := C.hce_decode(c.inner, (*C.uint8_t)(unsafe.Pointer(cs)), C.size_t(len(input)))
+	defer C.hce_free_result(r)
 	if !r.ok {
 		return nil, fmt.Errorf("hce: decode error %d", int(r.err_code))
 	}
-	defer C.hce_free_result(r)
 	out := make([]byte, int(r.len))
 	copy(out, C.GoBytes(unsafe.Pointer(r.data), C.int(r.len)))
 	return out, nil

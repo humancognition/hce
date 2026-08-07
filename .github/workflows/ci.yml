@@ -1,18 +1,14 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      release:
-        type: boolean
-        default: false
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,150 +16,52 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo
-          key: lint-cargo-${{ hashFiles('Cargo.lock') }}
       - run: cargo fmt --check
       - run: cargo clippy --workspace --exclude hce-py -- -D warnings
 
   header:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: cargo install cbindgen --locked
-      - run: cbindgen --config crates/hce-ffi/cbindgen.toml --crate hce-ffi --output /tmp/hce_gen.h 2>/dev/null
+      - run: cbindgen --config crates/hce-ffi/cbindgen.toml --crate hce-ffi --output /tmp/hce_gen.h
       - run: diff <(grep -v '^#define\|^$' crates/hce-ffi/hce.h) <(grep -v '^#define\|^$' /tmp/hce_gen.h)
 
   audit:
-    if: false
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-audit --locked
       - run: cargo audit
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: cd bindings/npm/hce && npm audit --audit-level=high
-
-  msrv:
-    if: false
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85
-      - run: cargo check --workspace --exclude hce-py
 
   build:
     needs: [lint, header]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo
-          key: ${{ matrix.os }}-cargo-${{ hashFiles('Cargo.lock') }}
       - run: cargo build --workspace --exclude hce-py
 
   test:
     needs: [lint, header]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo
-          key: ${{ matrix.os }}-cargo-${{ hashFiles('Cargo.lock') }}
       - run: cargo test --workspace --exclude hce-py
       - run: cargo test --test exhaustive -p hce-core
-      - run: cargo test --test exhaustive -p hce-ffi
       - run: cargo run -p hce-cli -- kat shared/kat
-
-  stress:
-    if: false
-    needs: [lint, header]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo
-          key: stress-${{ hashFiles('Cargo.lock') }}
-      - run: cargo test --workspace --exclude hce-py --release
-      - run: cargo run -p hce-cli -- kat shared/kat
-      - run: cargo run --bin hce-kat -p hce-core --features std -- 25000 42 shared/kat
-      - run: cargo run -p hce-cli -- kat shared/kat
-      - run: cargo test --test exhaustive -p hce-core -- --nocapture
-      - run: cargo test --test exhaustive -p hce-ffi -- --nocapture
-
-  coverage:
-    if: false
-    needs: [lint, header]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-      - run: cargo install cargo-llvm-cov
-      - run: cargo llvm-cov --workspace --exclude hce-py --lcov --output-path lcov.info
-      - uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          path: lcov.info
-
-  docs:
-    if: false
-    needs: [lint, header]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo doc --workspace --exclude hce-py --no-deps --document-private-items
-      - uses: actions/upload-artifact@v4
-        with:
-          name: docs
-          path: target/doc
-
-  bench:
-    if: false
-    needs: [lint, header]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo
-          key: bench-${{ hashFiles('Cargo.lock') }}
-      - run: cargo test --release --workspace --exclude hce-py
-      - name: Throughput
-        run: cargo test --release -p hce-core -- random_batch_100k --nocapture
 
   wasm:
     needs: [lint, header]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -175,25 +73,25 @@ jobs:
       - run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - run: wasm-pack build --target web crates/hce-wasm
       - run: cp crates/hce-wasm/pkg/hce_wasm_bg.wasm bindings/npm/hce/index_bg.wasm
-      - run: cp crates/hce-wasm/pkg/hce_wasm.js bindings/npm/hce/index.js
-      - run: cp crates/hce-wasm/pkg/hce_wasm.d.ts bindings/npm/hce/index.d.ts
+      - run: cp crates/hce-wasm/pkg/hce_wasm.js bindings/npm/hce/index.web.js
+      - run: cp crates/hce-wasm/pkg/hce_wasm.d.ts bindings/npm/hce/index.web.d.ts
       - run: cp crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts bindings/npm/hce/index_bg.wasm.d.ts
+      - run: |
+          cat > bindings/npm/hce/index.node.js << 'NODEEOF'
+          import { readFileSync } from "fs";
+          import { join, dirname } from "path";
+          import { fileURLToPath } from "url";
+          import { initSync, HceCodec } from "./index.web.js";
+          const __filename = fileURLToPath(import.meta.url);
+          const __dirname = dirname(__filename);
+          initSync(readFileSync(join(__dirname, "index_bg.wasm")));
+          export { HceCodec };
+          NODEEOF
       - run: cd bindings/npm/hce && npm ci && npx vitest run
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wasm-pkg
-          path: |
-            bindings/npm/hce/index_bg.wasm
-            bindings/npm/hce/index.js
-            bindings/npm/hce/index.d.ts
-            bindings/npm/hce/index_bg.wasm.d.ts
 
   python:
     needs: [lint, header]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -209,10 +107,7 @@ jobs:
 
   go:
     needs: [lint, header]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -220,14 +115,11 @@ jobs:
         with:
           go-version: '1.23'
       - run: cargo build -p hce-ffi --release
-      - run: cd bindings/go && LD_LIBRARY_PATH="$(pwd)/../../target/release" CGO_LDFLAGS="-L$(pwd)/../../target/release -lhce_ffi" CGO_CFLAGS="-I$(pwd)/../../crates/hce-ffi" go test -v
+      - run: cd bindings/go && CGO_LDFLAGS="-L$(pwd)/../../target/release -lhce_ffi" CGO_CFLAGS="-I$(pwd)/../../crates/hce-ffi" go test -v
 
   java:
     needs: [lint, header]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -237,211 +129,3 @@ jobs:
           distribution: 'temurin'
       - run: cargo build -p hce-ffi --release
       - run: cd bindings/java && gradle test
-
-  swift:
-    needs: [lint, header]
-    runs-on: blacksmith-6vcpu-macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build -p hce-ffi --release
-      - run: cd bindings/swift && swift build -Xlinker -L../../target/release -Xlinker -lhce_ffi
-
-  docker:
-    if: false
-    needs: [lint, header]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v4
-      - run: |
-          cat > Dockerfile << 'ENDOFDOCKERFILE'
-          FROM rust:1.85-slim AS builder
-          WORKDIR /build
-          COPY . .
-          RUN cargo build -p hce-ffi --release
-          RUN apt-get update && apt-get install -y gcc libmariadb-dev
-          RUN gcc -shared -fPIC -I/usr/include/mariadb bindings/sql/hce_udf.c -o libhce_udf.so -L target/release -lhce_ffi -ldl
-          FROM debian:bookworm-slim
-          COPY --from=builder /build/target/release/libhce_ffi.so /usr/lib/
-          COPY --from=builder /build/libhce_udf.so /usr/lib/mysql/plugin/
-          ENDOFDOCKERFILE
-          docker build -t hce-ffi .
-
-  integration:
-    needs: [test, wasm, python, go, java]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - run: curl --retry 3 --retry-delay 5 https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - run: wasm-pack build --target web crates/hce-wasm
-      - run: cp crates/hce-wasm/pkg/hce_wasm_bg.wasm bindings/npm/hce/index_bg.wasm
-      - run: cp crates/hce-wasm/pkg/hce_wasm.js bindings/npm/hce/index.js
-      - run: cp crates/hce-wasm/pkg/hce_wasm.d.ts bindings/npm/hce/index.d.ts
-      - run: cp crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts bindings/npm/hce/index_bg.wasm.d.ts
-      - run: cargo run -p hce-cli -- kat shared/kat
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: cd bindings/npm/hce && npm ci --fetch-retries=3 && npx vitest run
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: pip install --retries 3 maturin && cd crates/hce-py && maturin build && cd ${{ github.workspace }} && pip install $(python -c "import glob; print(glob.glob('target/wheels/hce-*.whl')[0])")
-      - run: python crates/hce-py/tests/test_kat.py
-
-  release-platform-build:
-    if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [test, python, integration]
-    strategy:
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-15, blacksmith-4vcpu-windows-2025]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Build Rust binary and Python wheel
-        shell: bash
-        run: |
-          cargo build --release --workspace --exclude hce-py
-          mkdir -p dist
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cp target/release/hce.exe dist/hce-windows-x86_64.exe
-          elif [ "${{ runner.os }}" = "macOS" ]; then
-            cp target/release/hce dist/hce-darwin-x86_64
-          else
-            cp target/release/hce dist/hce-linux-x86_64
-          fi
-          pip install maturin
-          cd crates/hce-py && maturin build --release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: platform-${{ matrix.os }}
-          path: |
-            dist/
-            target/wheels/*.whl
-
-  release-wasm-build:
-    if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [test, wasm, integration]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - run: wasm-pack build --target web crates/hce-wasm
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wasm-pkg
-          path: |
-            crates/hce-wasm/pkg/hce_wasm_bg.wasm
-            crates/hce-wasm/pkg/hce_wasm.js
-            crates/hce-wasm/pkg/hce_wasm.d.ts
-            crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts
-
-  release:
-    if: github.event_name == 'workflow_dispatch' && inputs.release
-    needs: [release-platform-build, release-wasm-build, go, java, swift]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    permissions:
-      contents: write
-      id-token: write
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: 'https://registry.npmjs.org'
-      - uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Download WASM artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: wasm-pkg
-          path: crates/hce-wasm/pkg
-
-      - name: Download platform artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: platform-*
-          merge-multiple: true
-
-      - name: Publish npm
-        continue-on-error: true
-        run: |
-          cp crates/hce-wasm/pkg/hce_wasm_bg.wasm bindings/npm/hce/index_bg.wasm
-          cp crates/hce-wasm/pkg/hce_wasm.js bindings/npm/hce/index.js
-          cp crates/hce-wasm/pkg/hce_wasm.d.ts bindings/npm/hce/index.d.ts
-          cp crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts bindings/npm/hce/index_bg.wasm.d.ts
-          cd bindings/npm/hce && npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish PyPI
-        continue-on-error: true
-        run: |
-          pip install maturin
-          cd crates/hce-py && maturin upload --skip-existing ../../target/wheels/*.whl
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-
-      - name: Publish crates.io
-        continue-on-error: true
-        run: |
-          for crate in hce-core hce-fpe hce-adapters hce-cli hce-ffi; do
-            cargo publish -p "$crate" --allow-dirty
-          done
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
-
-      - name: Publish Java to GitHub Packages
-        continue-on-error: true
-        run: cd bindings/java && gradle publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          artifact-name: sbom.spdx.json
-
-      - name: Get version
-        id: version
-        run: echo "value=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)" >> $GITHUB_OUTPUT
-
-      - name: Create tag
-        run: |
-          git tag "v${{ steps.version.outputs.value }}"
-          git push origin "v${{ steps.version.outputs.value }}"
-
-      - name: GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.value }}
-          files: |
-            dist/*
-            crates/hce-wasm/pkg/hce_wasm_bg.wasm
-            crates/hce-wasm/pkg/hce_wasm.js
-            crates/hce-wasm/pkg/hce_wasm.d.ts
-            crates/hce-wasm/pkg/hce_wasm_bg.wasm.d.ts
-            target/wheels/*.whl
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

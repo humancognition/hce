@@ -1,6 +1,6 @@
 [package]
 name = "hce-py"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/humancognition/hce"
@@ -11,6 +11,6 @@ name = "hce"
 crate-type = ["cdylib"]
 
 [dependencies]
-hce-core = { path = "../hce-core" }
-hce-fpe = { path = "../hce-fpe" }
+hce-core = { version = "0.1.2", path = "../hce-core" }
+hce-fpe = { version = "0.1.2", path = "../hce-fpe" }
 pyo3 = { version = "0.29.0", features = ["extension-module"] }

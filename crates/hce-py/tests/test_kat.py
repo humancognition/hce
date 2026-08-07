@@ -11,7 +11,7 @@ KEY = b"hce-kat-standard-key-32-bytes!!"
 total = 0
 failures = 0
 
-for name in ("universal", "eu", "en", "numeric"):
+for name in ("universal", "eu", "en", "numeric", "ko"):
     path = os.path.join(KAT_DIR, f"{name}.json")
     with open(path) as f:
         data = json.load(f)

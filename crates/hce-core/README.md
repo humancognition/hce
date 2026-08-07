@@ -2,7 +2,7 @@
 
 Lossless, pronounceable, encrypted codec for any identifier — reversible, format-preserving, human-readable.
 
-Only `hmac` + `sha2`+ `zeroing` dependencies.
+Only `hmac` + `sha2`+ `zeroize` dependencies.
 
 ## Usage
 

@@ -42,6 +42,7 @@ pub enum LanguageLevel {
     Eu,
     En,
     Numeric,
+    Ko,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,6 +59,7 @@ impl LanguageLevel {
             LanguageLevel::Eu => 1,
             LanguageLevel::En => 2,
             LanguageLevel::Numeric => 3,
+            LanguageLevel::Ko => 4,
         }
     }
 
@@ -67,6 +69,7 @@ impl LanguageLevel {
             1 => Some(LanguageLevel::Eu),
             2 => Some(LanguageLevel::En),
             3 => Some(LanguageLevel::Numeric),
+            4 => Some(LanguageLevel::Ko),
             _ => None,
         }
     }
@@ -167,7 +170,10 @@ impl core::fmt::Debug for Hce {
 
 impl Hce {
     pub fn new(key: Option<&[u8]>, level: LanguageLevel, mode: HceMode) -> Self {
-        if let (Some(k), mode) = (&key, mode) {
+        if mode != HceMode::Plain && key.is_none() {
+            panic!("key is required for sealed and open modes");
+        }
+        if let Some(k) = &key {
             if mode != HceMode::Plain && k.is_empty() {
                 panic!("key must not be empty for sealed/open modes");
             }
@@ -179,16 +185,14 @@ impl Hce {
                 domain,
             ))),
             (Some(k), _) => Cipher(alloc::sync::Arc::new(Feistel::with_domain(k, domain))),
-            (None, _) => Cipher(alloc::sync::Arc::new(Feistel::with_domain(
-                &[0u8; 32], domain,
-            ))),
+            (None, _) => unreachable!("key required for sealed/open, checked above"),
         };
 
         Hce {
             key: match (key, mode) {
                 (Some(k), _) => Some(Zeroizing::new(k.to_vec())),
                 (None, HceMode::Plain) => None,
-                (None, _) => Some(Zeroizing::new(alloc::vec![0u8; 32])),
+                (None, _) => unreachable!("key required for sealed/open, checked above"),
             },
             mode,
             level,
@@ -201,7 +205,7 @@ impl Hce {
             case: HceCase::Upper,
             chunk_spec: ChunkSpec::natural(),
             chunk_engine: alloc::sync::Arc::new(DefaultEngine),
-            normalizer: Normalizer::new(),
+            normalizer: Normalizer::new(level),
             current_domain: domain,
             custom_cipher: false,
         }
@@ -299,9 +303,7 @@ impl Hce {
                 domain,
             ))),
             (Some(k), _) => Cipher(alloc::sync::Arc::new(Feistel::with_domain(k, domain))),
-            (None, _) => Cipher(alloc::sync::Arc::new(Feistel::with_domain(
-                &[0u8; 32], domain,
-            ))),
+            (None, _) => unreachable!("key required for sealed/open, checked in new()"),
         };
     }
 
@@ -497,7 +499,7 @@ mod tests {
     fn open_has_prefix() {
         let hce = Hce::new(Some(test_key()), LanguageLevel::Universal, HceMode::Open);
         let encoded = hce.encode(&test_uuid_v7());
-        assert!(encoded.starts_with('K'));
+        assert!(encoded.starts_with('B'));
         let decoded = hce.decode_hce(&encoded).unwrap();
         assert_eq!(decoded, test_uuid_v7());
     }
@@ -556,11 +558,15 @@ mod tests {
     }
 
     #[test]
-    fn default_key_produces_valid_output() {
-        let hce = Hce::new(None, LanguageLevel::Universal, HceMode::Sealed);
-        let encoded = hce.encode(&test_uuid_v7());
-        let decoded = hce.decode_hce(&encoded).unwrap();
-        assert_eq!(decoded, test_uuid_v7());
+    #[should_panic(expected = "key is required")]
+    fn sealed_requires_key() {
+        Hce::new(None, LanguageLevel::Universal, HceMode::Sealed);
+    }
+
+    #[test]
+    #[should_panic(expected = "key is required")]
+    fn open_requires_key() {
+        Hce::new(None, LanguageLevel::Universal, HceMode::Open);
     }
 
     #[test]
@@ -877,5 +883,102 @@ mod tests {
         let enc = hce.encode(&data);
         let dec = hce.decode(&enc).unwrap();
         assert_eq!(dec, data.to_vec());
+    }
+
+    #[test]
+    fn stress_roundtrip_100k() {
+        let hce = Hce::new(Some(test_key()), LanguageLevel::Universal, HceMode::Sealed);
+        let mut seed = 0xDEADu64;
+        for i in 0..100_000u64 {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let p = ((seed as u128) << 64) | ((seed ^ 0xBEEF) as u128);
+            let data = p.to_be_bytes();
+            let enc = hce.encode(&data);
+            let dec = hce.decode(&enc).unwrap_or_else(|e| {
+                panic!("decode failed at iter {}: {:?} enc={}", i, e, enc);
+            });
+            assert_eq!(
+                dec,
+                data.to_vec(),
+                "roundtrip mismatch at iter {}: enc={}",
+                i,
+                enc
+            );
+        }
+    }
+
+    #[test]
+    fn stress_parser_token_roundtrip() {
+        use crate::parser::Parser;
+
+        let hce = Hce::new(Some(test_key()), LanguageLevel::Universal, HceMode::Sealed);
+        let parser = Parser::new(LanguageLevel::Universal);
+        let mut seed = 0xBEEFu64;
+
+        for i in 0..10_000u64 {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let p = ((seed as u128) << 64) | (seed.wrapping_add(1) as u128);
+            let data = p.to_be_bytes();
+            let enc = hce.encode(&data);
+
+            let cleaned: alloc::string::String = enc
+                .chars()
+                .filter(|c| c.is_ascii_alphabetic())
+                .map(|c| c.to_ascii_lowercase())
+                .collect();
+
+            let parsed = parser.parse(&cleaned).unwrap_or_else(|e| {
+                panic!(
+                    "parse failed at iter {}: {:?} enc={} cleaned={}",
+                    i, e, enc, cleaned
+                );
+            });
+
+            let hce_raw = Hce::new(Some(test_key()), LanguageLevel::Universal, HceMode::Sealed)
+                .with_chunk_spec(ChunkSpec::none())
+                .with_case(HceCase::Lower)
+                .with_check_syllables(0);
+            let raw_enc = hce_raw.encode(&data);
+            let raw_tokens = parser.parse(&raw_enc).unwrap();
+
+            assert_eq!(
+                parsed.len(),
+                raw_tokens.len(),
+                "token count mismatch at iter {}: parsed={} raw={} enc={}",
+                i,
+                parsed.len(),
+                raw_tokens.len(),
+                enc
+            );
+
+            for (j, (a, b)) in parsed.iter().zip(raw_tokens.iter()).enumerate() {
+                assert_eq!(
+                    a.index(),
+                    b.index(),
+                    "token[{}] mismatch at iter {}: parsed idx={} raw idx={}",
+                    j,
+                    i,
+                    a.index(),
+                    b.index()
+                );
+                assert_eq!(a.is_onset(), b.is_onset());
+            }
+        }
+    }
+
+    #[test]
+    fn stress_ko_roundtrip_50k() {
+        let hce = Hce::new(Some(test_key()), LanguageLevel::Ko, HceMode::Sealed);
+        let mut seed = 0xCAFEu64;
+        for i in 0..50_000u64 {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let p = ((seed as u128) << 64) | ((seed ^ 0xDEAD) as u128);
+            let data = p.to_be_bytes();
+            let enc = hce.encode(&data);
+            let dec = hce.decode(&enc).unwrap_or_else(|e| {
+                panic!("ko decode error at iter {}: {:?} enc={}", i, e, enc);
+            });
+            assert_eq!(dec, data.to_vec(), "ko mismatch at iter {}: enc={}", i, enc);
+        }
     }
 }
